@@ -1,18 +1,47 @@
 services:
-  postgres: 
+  postgres:
     image: postgres:16-alpine
-    container_name: kshortner
+    container_name: kshortner_postgres
 
     environment:
       POSTGRES_USER: admin
       POSTGRES_PASSWORD: password
-      POSTGRES_DB: kshortner
+      POSTGRES_DB: shortly
 
     ports:
       - "5432:5432"
-    
+
     volumes:
       - postgres_data:/var/lib/postgresql/data
+
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U admin"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  backend:
+    build:
+      context: ./server
+
+    container_name: kshortner_backend
+
+    ports:
+      - "5000:5000"
+
+    environment:
+      PORT: 5000
+      DATABASE_URL: postgresql://admin:password@postgres:5432/shortly
+
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+    volumes:
+      - ./server:/app
+      - /app/node_modules
+
+    command: bun run start
 
 volumes:
   postgres_data:
