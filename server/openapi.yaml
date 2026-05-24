@@ -1,0 +1,160 @@
+openapi: 3.0.3
+info:
+  title: URL Shortener API
+  version: 1.0.0
+  description: A simple URL shortener service API
+servers:
+  - url: http://localhost:5000
+    description: Development server
+paths:
+  /health:
+    get:
+      summary: Health check endpoint
+      description: Check if the server and database are running
+      responses:
+        '200':
+          description: Server and database are healthy
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    enum: [ok, error]
+                  database:
+                    type: string
+                    enum: [connected, disconnected]
+        '500':
+          description: Server error
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    enum: [error]
+                  database:
+                    type: string
+                    enum: [disconnected]
+  /api/url/shorten:
+    post:
+      summary: Create a short URL
+      description: Takes a long URL and returns a shortened URL
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - url
+              properties:
+                url:
+                  type: string
+                  format: uri
+                  example: https://example.com
+      responses:
+        '201':
+          description: Short URL created successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  data:
+                    type: object
+                    properties:
+                      shortCode:
+                        type: string
+                        example: abc123
+                      originalUrl:
+                        type: string
+                        format: uri
+                        example: https://example.com
+                      shortUrl:
+                        type: string
+                        format: uri
+                        example: http://localhost:5000/abc123
+        '400':
+          description: Invalid input
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: false
+                  error:
+                    type: string
+                    example: Invalid URL
+        '500':
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: false
+                  error:
+                    type: string
+                    example: Internal server error
+  /{shortCode}:
+    get:
+      summary: Redirect to original URL
+      description: Takes a short code and redirects to the original URL
+      parameters:
+        - name: shortCode
+          in: path
+          required: true
+          schema:
+            type: string
+            example: abc123
+      responses:
+        '302':
+          description: Found - Redirecting to original URL
+          headers:
+            Location:
+              description: The original URL to redirect to
+              schema:
+                type: string
+                format: uri
+        '404':
+          description: Short code not found
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: false
+                  error:
+                    type: string
+                    example: URL not found
+        '500':
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: false
+                  error:
+                    type: string
+                    example: Internal server error
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
