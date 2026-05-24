@@ -41,7 +41,7 @@ paths:
   /api/url/shorten:
     post:
       summary: Create a short URL
-      description: Takes a long URL and returns a shortened URL
+      description: Takes a long URL and returns a shortened URL. You may optionally provide a custom short code.
       requestBody:
         required: true
         content:
@@ -55,6 +55,10 @@ paths:
                   type: string
                   format: uri
                   example: https://example.com
+                shortCode:
+                  type: string
+                  description: Optional custom alias for the short URL
+                  example: my-cool-link
       responses:
         '201':
           description: Short URL created successfully
@@ -93,6 +97,19 @@ paths:
                   error:
                     type: string
                     example: Invalid URL
+        '409':
+          description: Short code already exists
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: false
+                  error:
+                    type: string
+                    example: Short code already exists
         '500':
           description: Internal server error
           content:

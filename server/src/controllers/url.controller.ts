@@ -21,7 +21,7 @@ function error(res: Response, message: string, status = 400): Response {
  */
 export async function shortenUrl(req: Request, res: Response): Promise<Response> {
   try {
-    const { url } = req.body;
+    const { url, shortCode } = req.body;
 
     if (!url || typeof url !== "string" || url.trim() === "") {
       return error(res, "URL is required", 400);
@@ -40,6 +40,38 @@ export async function shortenUrl(req: Request, res: Response): Promise<Response>
       return error(res, "URL must start with http:// or https://", 400);
     }
 
+    if (shortCode !== undefined) {
+      if (typeof shortCode !== "string" || shortCode.trim() === "") {
+        return error(res, "Short code must be a non-empty string", 400);
+      }
+
+      const normalizedShortCode = shortCode.trim();
+      const shortCodePattern = /^[a-zA-Z0-9-]+$/;
+
+      if (!shortCodePattern.test(normalizedShortCode)) {
+        return error(
+          res,
+          "Short code may only contain letters, numbers, and hyphens",
+          400,
+        );
+      }
+
+      const link = await createLink({
+        originalUrl: parsed.toString(),
+        shortCode: normalizedShortCode,
+      });
+
+      return success(
+        res,
+        {
+          shortCode: link.shortCode,
+          shortUrl: `${BASE_URL}/${link.shortCode}`,
+          originalUrl: link.originalUrl,
+        },
+        201,
+      );
+    }
+
     const link: LinkResponse = await createLink({
       originalUrl: parsed.toString(),
     });
@@ -50,6 +82,10 @@ export async function shortenUrl(req: Request, res: Response): Promise<Response>
       originalUrl: link.originalUrl,
     }, 201);
   } catch (err) {
+    if (err instanceof Error && err.message === "SHORT_CODE_TAKEN") {
+      return error(res, "Short code already exists", 409);
+    }
+
     console.error("[/api/url/shorten] error:", err);
     return error(res, "Internal server error", 500);
   }

@@ -1,8 +1,10 @@
 import prisma from "../lib/prisma.js";
+import { Prisma } from "@prisma/client";
 import { encodeIdToShortCode } from "../utils/shortCode.js";
 
 export interface CreateLinkInput {
   originalUrl: string;
+  shortCode?: string;
 }
 
 export interface LinkResponse {
@@ -17,14 +19,42 @@ export interface LinkResponse {
  * createLink
  *
  * 1. Insert a row with only `originalUrl`.
- *    Prisma 7 requires `shortCode` in the create input because it is `@unique`,
- *    so we pass a placeholder and overwrite it in step 4.
+ *    
  * 2. Read back the generated auto-increment `id`.
  * 3. Encode the `id` into a deterministic shortcode.
  * 4. Update the row with the real shortcode.
  * 5. Return the full link record.
  */
 export async function createLink(input: CreateLinkInput): Promise<LinkResponse> {
+  if (input.shortCode) {
+    try {
+      const created = await prisma.link.create({
+        data: {
+          originalUrl: input.originalUrl,
+          shortCode: input.shortCode,
+        },
+        select: {
+          id: true,
+          originalUrl: true,
+          shortCode: true,
+          clicks: true,
+          createdAt: true,
+        },
+      });
+
+      return created;
+    } catch (err) {
+      if (
+        err instanceof Prisma.PrismaClientKnownRequestError &&
+        err.code === "P2002"
+      ) {
+        throw new Error("SHORT_CODE_TAKEN");
+      }
+
+      throw err;
+    }
+  }
+
   // Step 1 – insert row with a temporary shortCode placeholder
   const created = await prisma.link.create({
     data: {
